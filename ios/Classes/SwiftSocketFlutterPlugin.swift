@@ -1,6 +1,8 @@
 import Flutter
 import UIKit
 import SocketIO
+import Starscream
+
 public class SwiftSocketFlutterPlugin: NSObject, FlutterPlugin {
     
     var mChannel: FlutterMethodChannel?
@@ -23,7 +25,32 @@ public class SwiftSocketFlutterPlugin: NSObject, FlutterPlugin {
     if call.method == "socket" {
         do{
             if let args = call.arguments as? [String: String],let url = args["url"] {
-                socketManager = SocketManager(socketURL: URL(string: url)!, config: [.log(true), .compress])
+                let  ca_cert = Bundle.main.path(forResource: "ca", ofType: "cert")
+                let  intermediate_cert = Bundle.main.path(forResource: "intermediate", ofType: "cert")
+                var certs = [SSLCert]()
+                if let certificateData = try? Data(contentsOf: URL(fileURLWithPath: ca_cert!)) as Data {
+                    let certificate = SSLCert(data: certificateData)
+                    certs.append(certificate)
+                }
+                
+                if let certificateData = try? Data(contentsOf: URL(fileURLWithPath: intermediate_cert!)) as Data {
+                    let certificate = SSLCert(data: certificateData)
+                    certs.append(certificate)
+                }
+                
+                let security: SocketIO.SSLSecurity = SocketIO.SSLSecurity(certs: certs, usePublicKeys: false)
+                security.security.validatedDN = false
+                
+                socketManager = SocketManager(
+                    socketURL: URL(string: url)!,
+                    config: [
+                        .log(true),
+                        .compress,
+                        .selfSigned(true),
+                        .forceWebsockets(true),
+                        .forceNew(true),
+                        .security(security)
+                    ])
                 socket = socketManager!.defaultSocket
                 result("created")
             }

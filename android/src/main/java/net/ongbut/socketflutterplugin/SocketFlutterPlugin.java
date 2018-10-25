@@ -19,6 +19,12 @@ import com.github.nkzawa.socketio.client.Socket;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+
 /** SocketFlutterPlugin */
 public class SocketFlutterPlugin implements MethodCallHandler {
   /** Plugin registration. */
@@ -42,7 +48,34 @@ public class SocketFlutterPlugin implements MethodCallHandler {
     if (call.method.equals("socket")) {
         {
           try {
-            String url = call.argument("url");
+              SSLContext mySSLContext = SSLContext.getInstance("TLS");
+              TrustManager[] trustAllCerts= new TrustManager[] { new X509TrustManager() {
+                  public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                      return new java.security.cert.X509Certificate[] {};
+                  }
+
+                  public void checkClientTrusted(X509Certificate[] chain,
+                                                 String authType) throws CertificateException {
+                  }
+
+                  public void checkServerTrusted(X509Certificate[] chain,
+                                                 String authType) throws CertificateException {
+                  }
+              } };
+
+              mySSLContext.init(null, trustAllCerts, null);
+
+              HostnameVerifier myHostnameVerifier = new HostnameVerifier() {
+                  @Override
+                  public boolean verify(String hostname, SSLSession session) {
+                      return true;
+                  }
+              };
+              IO.Options opts = new IO.Options();
+              opts.forceNew = true;
+              opts.sslContext = mySSLContext;
+              opts.transports = new String[]{"websocket"};
+            String url = call.argument("url", opts);
             mSocket = IO.socket(url);
             Log.d("SocketIO ","Socket initialised");
           } catch (URISyntaxException e) {
